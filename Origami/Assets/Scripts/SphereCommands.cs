@@ -12,17 +12,12 @@ using UnityEngine.Windows.Speech;
 
 public class SphereCommands : MonoBehaviour {
   Vector3 originalPosition;
-  KeywordRecognizer keywordRecognizer = null;
-  Dictionary<string, System.Action> keywords = new Dictionary<string, System.Action>();
-  PhotoCapture photoCaptureObject = null;
   GestureRecognizer m_GestureRecognizer;
-  GameObject m_Quad = null;
-  Renderer m_QuadRenderer = null;
   PhotoCapture m_PhotoCaptureObj;
   CameraParameters m_CameraParameters;
-  bool m_CapturingPhoto = false;
   bool gestures = false;
-  Texture2D m_Texture = null;
+  private TextMesh _holoText;
+  private double UserAge = -1;
 
 
   // Use this for initialization
@@ -31,6 +26,14 @@ public class SphereCommands : MonoBehaviour {
     originalPosition = this.transform.localPosition;
 
     Initialize();
+
+    _holoText = GameObject.Find("AgeText").GetComponent<TextMesh>();
+  }
+
+  void Update() {
+    if (UserAge != -1) {
+      _holoText.text = "User is " + UserAge + " years old.";
+    }
   }
 
   void SetupGestureRecognizer() {
@@ -111,6 +114,17 @@ public class SphereCommands : MonoBehaviour {
           using (var sr = new System.IO.StreamReader(responseStream)) {
             // read in the servers response right here.
             responseString = sr.ReadToEnd();
+
+            // Workaround for issue with Unitys deserializer. The JsonUtility seems to only work with objects as root element.
+            // Example of what MS spits back to demonstrate the issue. MS sends back array as root. 
+            // [{"faceId":"806783ff-6e82-4240-8bfd-3943b6d3270d","faceRectangle":{"top":298,"left":789,"width":199,"height":199},"faceAttributes":{"age":34.5}}]
+            string JSONToParse = "{\"UserData\":" + responseString + "}";
+
+            UserIdentity jsonObject = JsonUtility.FromJson<UserIdentity>(JSONToParse);
+            if (jsonObject != null) {
+
+              UserAge = jsonObject.faceAttributes.age;
+            }
           }
         }, null);
 
@@ -143,6 +157,7 @@ public class SphereCommands : MonoBehaviour {
   }
 }
 
+[Serializable]
 public class UserIdentity {
   public string faceId { get; set; }
   public FaceCoords faceRectangle = new FaceCoords();
